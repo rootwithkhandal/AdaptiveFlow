@@ -1,0 +1,56 @@
+{
+  "title": "LLM Router Dashboard",
+  "uid": "llm-router",
+  "schemaVersion": 36,
+  "version": 2,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Requests per Model",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "rate(llm_router_requests_total[1m])",
+          "legendFormat": "{{model}} / {{task}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Latency p95 per Model",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(llm_router_latency_seconds_bucket[5m]))",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Cumulative Cost (USD)",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "sum(llm_router_cost_usd_total)",
+          "legendFormat": "Total Cost"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Cache Hits Rate",
+      "type": "timeseries",
+      "gridPos": {"h": 4, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "expr": "rate(llm_router_cache_hits_total[1m])",
+          "legendFormat": "{{type}} hit"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg
+
+# Virtual environments & uv
+.venv/
+venv/
+env/
+ENV/
+.uv/
+
+# Pytest / Coverage / Linting
+.pytest_cache/
+.coverage
+.coverage.*
+.cache
+htmlcov/
+.hypothesis/
+.ruff_cache/
+.mypy_cache/
+
+# Environment and sensitive secrets
+.env
+.env.*
+!.env.example
+
+# Local runtime data & databases (keep data/.gitkeep)
+data/*
+!data/.gitkeep
+
+# IDE and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Agent logs
+.agents/
+report.md
+

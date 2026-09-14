@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AdaptiveFlow — adapts to every prompt</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <nav class="navbar">
+    <div class="nav-inner">
+      <div class="nav-left">
+        <div class="brand" onclick="switchTab('chat')">
+          <svg class="brand-triangle" viewBox="0 0 75 65" fill="#171717">
+            <path d="M37.5 0L75 65H0L37.5 0Z" />
+          </svg>
+          <span>AdaptiveFlow</span>
+        </div>
+        <div class="nav-tabs">
+          <button class="tab-link active" data-tab="chat">Chat</button>
+          <button class="tab-link" data-tab="explain">Explainability</button>
+          <button class="tab-link" data-tab="models">Models & Breakers</button>
+          <button class="tab-link" data-tab="profile">Profiles & Hints</button>
+          <button class="tab-link" data-tab="admin">Compliance & Admin</button>
+        </div>
+      </div>
+      <div class="nav-right">
+        <div class="system-status-pill">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">checking</span>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Band with Vercel Multi-Stop Mesh Gradient -->
+  <header class="hero-band">
+    <div class="hero-mesh-gradient"></div>
+    <div class="hero-content">
+      <div class="hero-eyebrow">Enterprise Multi-Model Load Balancer</div>
+      <h1 class="hero-title">AdaptiveFlow</h1>
+      <p class="hero-tagline">
+        <strong>adapts to every prompt</strong> — dynamic reinforcement learning routing, prompt complexity scoring, persona priors, semantic caching, and resilient circuit breakers.
+      </p>
+      <div class="hero-actions">
+        <button class="btn-primary-pill" onclick="switchTab('chat')">Start Testing</button>
+        <button class="btn-secondary-pill" onclick="switchTab('explain')">Inspect Explainability</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="app-container">
+
+    <!-- TAB 1: CHAT & DISPATCH -->
+    <section class="tab-pane active" id="tab-chat">
+      <div class="chat-layout">
+        <!-- Sidebar Controls -->
+        <aside class="chat-sidebar">
+          <div class="card">
+            <div class="card-title">Active User & Tier</div>
+            <div class="form-group">
+              <label class="form-label">User ID</label>
+              <input type="text" id="userId" class="form-input" value="user_001" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Active Tier</label>
+              <div id="sidebarTierPill" style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="badge badge-model" id="activeTierText">free</span>
+                <span style="font-size:11px; color:var(--colors-mute);" id="activeBudgetText">Budget: ∞</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--colors-mute);">
+                <span>Rate Limit (60s window)</span>
+                <span id="rateLimitCount" style="font-family:var(--font-mono);">0 / 10</span>
+              </div>
+              <div class="meter-wrap">
+                <div class="meter-fill" id="rateLimitMeter"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Routing Mode</div>
+            <div class="form-group">
+              <select id="routeModeSelect" class="form-select">
+                <option value="route">Standard RL Router (/route)</option>
+                <option value="parallel_fastest">Parallel Dispatch - Fastest</option>
+                <option value="parallel_all">Parallel Dispatch - All</option>
+                <option value="synthesize">Fugu-Ultra Synthesis (Pro+)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Last Turn Telemetry</div>
+            <div class="telemetry-table">
+              <div class="telemetry-row">
+                <span class="telemetry-label">Model</span>
+                <span class="telemetry-val" id="metaModel">—</span>
+              </div>
+              <div class="telemetry-row">
+                <span class="telemetry-label">Task</span>
+                <span class="telemetry-val" id="metaTask">—</span>
+              </div>
+              <div class="telemetry-row">
+                <span class="telemetry-label">Complexity</span>
+                <span class="telemetry-val" id="metaComplexity">—</span>
+              </div>
+              <div class="telemetry-row">
+                <span class="telemetry-label">Cost</span>
+                <span class="telemetry-val" id="metaCost">—</span>
+              </div>
+              <div class="telemetry-row">
+                <span class="telemetry-label">Latency</span>
+                <span class="telemetry-val" id="metaLatency">—</span>
+              </div>
+              <div class="telemetry-row">
+                <span class="telemetry-label">Cache Hit</span>
+                <span class="telemetry-val" id="metaCached">—</span>
+              </div>
+            </div>
+
+            <div id="feedbackSection" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--colors-hairline);">
+              <label class="form-label">Rate Last Output</label>
+              <div style="display:flex; gap:6px;">
+                <button class="btn-sm-secondary" style="flex:1;" onclick="submitFeedback(1)">👍 Good</button>
+                <button class="btn-sm-secondary" style="flex:1;" onclick="submitFeedback(-1)">👎 Poor</button>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Chat Feed & Input -->
+        <div class="chat-main">
+          <div class="chat-messages" id="chatMessages">
+            <div class="welcome-screen" id="welcomeScreen">
+              <h3>Adapts to every prompt</h3>
+              <p>Simple queries automatically route to cheap/free models. Complex queries invoke multi-armed bandit exploration.</p>
+              <div class="sample-prompts-grid">
+                <button class="sample-prompt-btn" onclick="useSamplePrompt('What is 2 + 2?')">
+                  <strong>Simple Math</strong>
+                  "What is 2 + 2?"
+                </button>
+                <button class="sample-prompt-btn" onclick="useSamplePrompt('Write a Python function for binary search with edge cases.')">
+                  <strong>Code Task</strong>
+                  "Write a Python function for binary search..."
+                </button>
+                <button class="sample-prompt-btn" onclick="useSamplePrompt('How does SQL injection work and how do parameterized queries mitigate it?')">
+                  <strong>Security Task</strong>
+                  "How does SQL injection work..."
+                </button>
+                <button class="sample-prompt-btn" onclick="useSamplePrompt('Compare the trade-offs of microservices vs monoliths for high-throughput.')">
+                  <strong>Complex Architecture</strong>
+                  "Compare the trade-offs of microservices..."
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-input-bar">
+            <div class="input-container">
+              <textarea
+                id="promptInput"
+                class="chat-textarea"
+                rows="1"
+                placeholder="Ask anything — code, creative, security, or general questions..."
+              ></textarea>
+              <button class="chat-submit-btn" id="sendBtn" onclick="sendPrompt()" title="Send prompt">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: EXPLAINABILITY STUDIO -->
+    <section class="tab-pane" id="tab-explain">
+      <div class="panel-header">
+        <div>
+          <h2>Routing Explainability Studio</h2>
+          <div class="panel-subtitle">Transparent algorithmic breakdown of task classification, prompt complexity, priors, and model selection.</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: var(--spacing-lg);">
+        <div class="card-title">Inspect Decision Logic (GET /route/explain)</div>
+        <div style="display:flex; gap:var(--spacing-md); align-items:flex-end;">
+          <div style="flex:1;">
+            <label class="form-label">Prompt to analyze</label>
+            <input type="text" id="explainPrompt" class="form-input" value="Write a Python script to audit AWS S3 bucket permissions for public read access" />
+          </div>
+          <div style="width:160px;">
+            <label class="form-label">User ID</label>
+            <input type="text" id="explainUserId" class="form-input" value="user_001" />
+          </div>
+          <button class="btn-sm-primary" style="height:35px;" onclick="runExplain()">Analyze Route</button>
+        </div>
+      </div>
+
+      <!-- Explainability Metrics Grid -->
+      <div class="explain-grid" id="explainMetricsGrid" style="display:none;">
+        <div class="stat-metric-card">
+          <div class="stat-metric-label">Task Class</div>
+          <div class="stat-metric-value" id="expTaskClass">—</div>
+          <div class="stat-metric-hint" id="expTaskConfidence">Confidence: 1.00</div>
+        </div>
+        <div class="stat-metric-card">
+          <div class="stat-metric-label">Complexity Score</div>
+          <div class="stat-metric-value" id="expComplexityScore">—</div>
+          <div class="stat-metric-hint" id="expComplexityVerdict">Evaluating...</div>
+        </div>
+        <div class="stat-metric-card">
+          <div class="stat-metric-label">Selected Model</div>
+          <div class="stat-metric-value" id="expSelectedModel" style="font-size:18px;">—</div>
+          <div class="stat-metric-hint" id="expEstimatedCost">Est. Cost: $0.000000</div>
+        </div>
+        <div class="stat-metric-card">
+          <div class="stat-metric-label">Cache State</div>
+          <div class="stat-metric-value" id="expCacheStatus" style="font-size:18px;">Miss</div>
+          <div class="stat-metric-hint" id="expCacheType">Exact & Semantic Checked</div>
+        </div>
+      </div>
+
+      <div class="explain-section" id="explainDetailsSection" style="display:none;">
+        <!-- Top 3 Candidates -->
+        <div class="card">
+          <div class="card-title">Candidate Models Ranked by Task Q-Value</div>
+          <div class="table-wrap">
+            <table class="geist-table" id="candidatesTable">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Model</th>
+                  <th>Task Q-Value</th>
+                  <th>Prior</th>
+                  <th>Latency</th>
+                  <th>Breaker</th>
+                </tr>
+              </thead>
+              <tbody id="candidatesTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Selection Reasoning Card -->
+        <div class="card">
+          <div class="card-title">Selection Reasoning</div>
+          <p id="expReasoningText" style="font-size:13px; line-height:22px; color:var(--colors-body); margin-bottom:12px;"></p>
+          
+          <div class="card-title" style="margin-top:16px;">Complexity Dimensions</div>
+          <div class="telemetry-table" id="complexityDimensionsTable"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: MODELS & BREAKERS -->
+    <section class="tab-pane" id="tab-models">
+      <div class="panel-header">
+        <div>
+          <h2>Model Registry & Circuit Breakers</h2>
+          <div class="panel-subtitle">Health state machines, failure recovery canaries, and multi-armed bandit Q-tables.</div>
+        </div>
+        <button class="btn-sm-secondary" onclick="loadModelStats()">↻ Refresh Stats</button>
+      </div>
+
+      <div class="models-grid" id="modelsGrid">
+        <div style="color:var(--colors-mute); padding:20px;">Loading model catalog and telemetry...</div>
+      </div>
+    </section>
+
+    <!-- TAB 4: PROFILES & HINTS -->
+    <section class="tab-pane" id="tab-profile">
+      <div class="panel-header">
+        <div>
+          <h2>User Profiles & Routing Persona Hints</h2>
+          <div class="panel-subtitle">Manage user quotas, tiers, and Bayesian prior steering hints (prefer / avoid).</div>
+        </div>
+      </div>
+
+      <div class="explain-section">
+        <!-- User lookup & Profile -->
+        <div class="card">
+          <div class="card-title">User Profile Lookup</div>
+          <div style="display:flex; gap:8px; margin-bottom:16px;">
+            <input type="text" id="profileLookupId" class="form-input" value="user_001" placeholder="Enter user ID" />
+            <button class="btn-sm-primary" onclick="loadProfile()">Look Up</button>
+          </div>
+
+          <div id="profileDetails" style="display:none;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+              <div class="stat-metric-card">
+                <div class="stat-metric-label">User Tier</div>
+                <div class="stat-metric-value" id="profTier" style="text-transform:capitalize;">free</div>
+              </div>
+              <div class="stat-metric-card">
+                <div class="stat-metric-label">Accrued Spend</div>
+                <div class="stat-metric-value" id="profTotalCost">$0.0000</div>
+              </div>
+              <div class="stat-metric-card">
+                <div class="stat-metric-label">Total Requests</div>
+                <div class="stat-metric-value" id="profRequestCount">0</div>
+              </div>
+              <div class="stat-metric-card">
+                <div class="stat-metric-label">Budget Remaining</div>
+                <div class="stat-metric-value" id="profBudget">∞</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Persona Hints Editor -->
+        <div class="card">
+          <div class="card-title">Bayesian Routing Hints</div>
+          <p style="font-size:12px; color:var(--colors-mute); margin-bottom:12px;">
+            Steer model selection at decision time without corrupting the empirical RL environment Q-values.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label">Preferred Specialization (Prior +0.75)</label>
+            <select id="prefSpecialization" class="form-select">
+              <option value="">None (pure RL)</option>
+              <option value="code_heavy">code_heavy (Claude 3.5 Sonnet / GPT-4o)</option>
+              <option value="security_first">security_first (Llama 3 70B / Sonnet)</option>
+              <option value="creative">creative (GPT-4o / Claude)</option>
+              <option value="fast">fast (Gemini 1.5 Flash / GPT-4o-mini)</option>
+              <option value="cost_saving">cost_saving (Local Ollama / Free)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Avoid Models / Providers (Penalty -5.0)</label>
+            <input type="text" id="prefAvoid" class="form-input" placeholder="e.g. gemini, anthropic (comma separated)" />
+          </div>
+
+          <button class="btn-sm-primary" style="margin-top:8px;" onclick="savePreferences()">Save Routing Hints</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: COMPLIANCE & ADMIN -->
+    <section class="tab-pane" id="tab-admin">
+      <div class="panel-header">
+        <div>
+          <h2>Security Compliance & Administration</h2>
+          <div class="panel-subtitle">Forensic security audit logs, user tier provisioning, and system weights.</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:var(--spacing-lg);">
+        <div class="card-title">Admin Secret Key Authentication</div>
+        <div style="display:flex; gap:8px;">
+          <input type="password" id="adminSecretKey" class="form-input" placeholder="Enter SECRET_KEY from environment" value="admin-secret-key" />
+          <button class="btn-sm-secondary" onclick="loadSecurityAuditLogs()">Fetch Audit Log</button>
+          <button class="btn-sm-secondary" onclick="loadAllUserCosts()">Load User Costs</button>
+          <button class="btn-sm-secondary" onclick="loadRLWeights()">Load RL State</button>
+        </div>
+      </div>
+
+      <!-- Security Audit Log Table -->
+      <div class="card" style="margin-bottom:var(--spacing-lg);">
+        <div class="card-title">Structured Security Compliance Audit Log (SQLite / JSONL)</div>
+        <div class="table-wrap">
+          <table class="geist-table" id="auditTable">
+            <thead>
+              <tr>
+                <th>Timestamp (UTC)</th>
+                <th>Actor</th>
+                <th>Threat Category</th>
+                <th>Matched Rule</th>
+                <th>Prompt Snippet</th>
+              </tr>
+            </thead>
+            <tbody id="auditTableBody">
+              <tr><td colspan="5" style="color:var(--colors-mute);">Enter admin key and click "Fetch Audit Log".</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="admin-grid">
+        <!-- User Tier Updater -->
+        <div class="card">
+          <div class="card-title">Tier & Quota Provisioning</div>
+          <div class="form-group">
+            <label class="form-label">Target User ID</label>
+            <input type="text" id="adminTierUserId" class="form-input" placeholder="user_001" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Assign Tier</label>
+            <select id="adminTierSelect" class="form-select">
+              <option value="free">free (10 req/min)</option>
+              <option value="pro">pro (60 req/min)</option>
+              <option value="enterprise">enterprise (unlimited)</option>
+              <option value="high_risk">high_risk (sandboxed)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Budget USD (optional)</label>
+            <input type="number" id="adminTierBudget" class="form-input" placeholder="e.g. 50.00" step="0.01" />
+          </div>
+          <button class="btn-sm-primary" onclick="adminSetTier()">Update Tier</button>
+        </div>
+
+        <!-- High Risk Sandboxing -->
+        <div class="card">
+          <div class="card-title">Sandbox High-Risk Actor</div>
+          <p style="font-size:12px; color:var(--colors-mute); margin-bottom:12px;">
+            High-risk actors are restricted to local Ollama sandboxes with zero external model access.
+          </p>
+          <div class="form-group">
+            <label class="form-label">User ID to Flag</label>
+            <input type="text" id="adminFlagUserId" class="form-input" placeholder="attacker_01" />
+          </div>
+          <button class="btn-sm-danger" onclick="adminFlagUser()">Flag as High Risk</button>
+        </div>
+      </div>
+
+      <div class="card" id="adminOutputCard" style="display:none; margin-top:var(--spacing-lg);">
+        <div class="card-title" id="adminOutputTitle">Result</div>
+        <pre class="code-pre" id="adminOutputText"></pre>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Floating Toast Notification -->
+  <div class="toast-notice" id="toastNotice"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
