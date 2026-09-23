@@ -1,4 +1,5 @@
 """Admin endpoints for cost monitoring, user management, and model registration/warmup."""
+import secrets
 from typing import Optional
 from fastapi import APIRouter, Header, HTTPException, Query, Depends
 from app.dependencies import rl_router, profile_manager, prompt_filter
@@ -15,7 +16,7 @@ from app.api.schemas import (
 )
 
 def _verify_admin(x_admin_key: str = Header(...)):
-    if x_admin_key != settings.secret_key:
+    if not settings.secret_key or not secrets.compare_digest(x_admin_key, settings.secret_key):
         raise HTTPException(status_code=403, detail="Invalid admin key")
 
 admin_router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(_verify_admin)])
@@ -125,4 +126,3 @@ async def get_security_audit_logs(
 async def get_security_audit_stats():
     """Summary of all security events: counts by threat type and top flagged users."""
     return prompt_filter.get_audit_stats()
-

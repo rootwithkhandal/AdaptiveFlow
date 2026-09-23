@@ -360,7 +360,7 @@
       <div class="card" style="margin-bottom:var(--spacing-lg);">
         <div class="card-title">Admin Secret Key Authentication</div>
         <div style="display:flex; gap:8px;">
-          <input type="password" id="adminSecretKey" class="form-input" placeholder="Enter SECRET_KEY from environment" value="admin-secret-key" />
+          <input type="password" id="adminSecretKey" class="form-input" placeholder="Enter SECRET_KEY from environment" autocomplete="off" />
           <button class="btn-sm-secondary" onclick="loadSecurityAuditLogs()">Fetch Audit Log</button>
           <button class="btn-sm-secondary" onclick="loadAllUserCosts()">Load User Costs</button>
           <button class="btn-sm-secondary" onclick="loadRLWeights()">Load RL State</button>

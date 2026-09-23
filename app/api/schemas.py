@@ -5,7 +5,7 @@ from typing import Optional, List, Dict, Any
 
 class RouteRequest(BaseModel):
     user_id: str = Field(..., description="Unique user identifier")
-    prompt: str = Field(..., description="User prompt to route")
+    prompt: str = Field(..., max_length=20_000, description="User prompt to route")
 
 
 class RouteResponse(BaseModel):
@@ -19,11 +19,12 @@ class RouteResponse(BaseModel):
     similarity: Optional[float] = None
     context_injected: bool = False
     complexity: Optional[Dict[str, Any]] = None
+    feedback_token: Optional[str] = None
 
 
 class ParallelRouteRequest(BaseModel):
     user_id: str = Field(..., description="Unique user identifier")
-    prompt: str = Field(..., description="User prompt to route")
+    prompt: str = Field(..., max_length=20_000, description="User prompt to route")
     models: Optional[List[str]] = Field(None, description="Candidate models to dispatch concurrently")
     strategy: str = Field("fastest", description="Selection strategy: 'fastest', 'highest_q', or 'all'")
 
@@ -40,7 +41,7 @@ class ParallelRouteResponse(BaseModel):
 
 class SynthesizeRequest(BaseModel):
     user_id: str = Field(..., description="Unique user identifier (Must be Pro or Enterprise tier)")
-    prompt: str = Field(..., description="User prompt to synthesize")
+    prompt: str = Field(..., max_length=20_000, description="User prompt to synthesize")
     candidate_models: Optional[List[str]] = Field(None, description="2-3 candidate models to evaluate concurrently")
     judge_model: Optional[str] = Field(None, description="Lightweight judge model (defaults to Claude 3 Haiku / Gemini Flash)")
 
@@ -63,6 +64,7 @@ class FeedbackRequest(BaseModel):
     model_used: str
     rating: int = Field(..., ge=-1, le=1, description="-1=bad, 0=neutral, 1=good")
     task_type: Optional[str] = None
+    feedback_token: str = Field(..., min_length=1)
 
 
 class FeedbackResponse(BaseModel):
@@ -161,7 +163,7 @@ class ExplainResponse(BaseModel):
 
 
 class ComplexityScoreRequest(BaseModel):
-    prompt: str = Field(..., description="Prompt text to evaluate complexity for")
+    prompt: str = Field(..., max_length=20_000, description="Prompt text to evaluate complexity for")
     user_id: Optional[str] = Field(default="anonymous", description="Optional user identifier")
 
 
@@ -176,4 +178,3 @@ class ComplexityScoreResponse(BaseModel):
     question_depth: float
     signals: List[str]
     cheapest_model: Optional[str] = None
-

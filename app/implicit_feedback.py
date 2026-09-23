@@ -145,12 +145,17 @@ class ImplicitFeedbackTracker:
 
     def record_turn(self, user_id: str, prompt: str, model: str, task: str, latency: float):
         """Records the latest turn state for a user."""
+        now = time.time()
+        self._user_turns = {uid: turn for uid, turn in self._user_turns.items() if now - turn["timestamp"] <= self.session_window}
+        if user_id not in self._user_turns and len(self._user_turns) >= settings.max_implicit_feedback_users:
+            oldest = min(self._user_turns, key=lambda uid: self._user_turns[uid]["timestamp"])
+            del self._user_turns[oldest]
         self._user_turns[user_id] = {
             "prompt": prompt,
             "model": model,
             "task": task,
             "latency": latency,
-            "timestamp": time.time(),
+            "timestamp": now,
         }
 
     def record_abandonment(self, user_id: str, reason: str = "client_abort") -> Optional[Dict[str, Any]]:

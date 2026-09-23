@@ -21,7 +21,7 @@ os.makedirs("data", exist_ok=True)
 
 # Adversarial patterns to block
 ADVERSARIAL_PATTERNS = [
-    (r"\bignore\s+(?:(?:all|previous|prior)\s+)*(?:instructions?|prompts?|rules?)\b", "prompt_injection"),
+    (r"\bignore\s+(?:all\s+|previous\s+|prior\s+){0,3}(?:instructions?|prompts?|rules?)\b", "prompt_injection"),
     (r"\bjailbreak\b", "jailbreak"),
     (r"\bdan mode\b", "jailbreak"),
     (r"\bact as (an? )?(unrestricted|evil|malicious|hacker)\b", "jailbreak"),
@@ -91,14 +91,17 @@ class PromptFilter:
         - Action taken (blocked)
         """
         now = datetime.now(timezone.utc)
+        # Audit records must never become a secondary store of PII/payment data.
+        clean_prompt = re.sub(r"\b(?:\d[ -]*?){13,16}\b", "[REDACTED_CC]", prompt)
+        clean_prompt = re.sub(r"\b\d{3}-?\d{2}-?\d{4}\b", "[REDACTED_SSN]", clean_prompt)
         record = {
             "timestamp": now.isoformat(),
             "epoch": time.time(),
             "user_id": user_id or "anonymous",
             "threat_type": threat,
             "matched_pattern": pattern,
-            "prompt_snippet": prompt[:120],
-            "full_prompt": prompt,
+            "prompt_snippet": clean_prompt[:120],
+            "full_prompt": clean_prompt,
             "prompt_length": len(prompt),
             "action_taken": "blocked",
         }

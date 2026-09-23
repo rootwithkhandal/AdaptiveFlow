@@ -1,4 +1,6 @@
 """Central configuration loaded from environment variables."""
+import secrets
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 from typing import Literal
 
@@ -22,7 +24,13 @@ class Settings(BaseSettings):
     # App
     app_env: Literal["development", "production"] = "development"
     log_level: str = "INFO"
-    secret_key: str = "change-me"
+    secret_key: str = Field(default_factory=lambda: secrets.token_urlsafe(48))
+    allowed_origins: list[str] = ["http://localhost:8000"]
+    feedback_token_ttl_seconds: int = 900
+    max_prompt_length: int = 20_000
+    max_local_cache_entries: int = 10_000
+    max_vector_memory_entries_per_user: int = 1_000
+    max_implicit_feedback_users: int = 10_000
 
     # RL Router
     epsilon: float = 0.1
@@ -55,6 +63,15 @@ class Settings(BaseSettings):
     complexity_weight_depth: float = 0.40
 
     model_config = {"env_file": ".env", "extra": "ignore"}
+
+    @field_validator("secret_key")
+    @classmethod
+    def validate_secret_key(cls, value: str, info):
+        env = info.data.get("app_env", "development")
+        weak = {"", "change-me", "admin-secret-key", "change-me-in-production"}
+        if env == "production" and (value in weak or len(value) < 32):
+            raise ValueError("SECRET_KEY must be a unique value of at least 32 characters in production")
+        return value
 
 
 settings = Settings()

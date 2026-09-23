@@ -3,6 +3,8 @@ Stores tier, budget, usage stats, and risk flags.
 """
 import json
 import os
+import tempfile
+import threading
 from typing import Dict, Any, Optional, List
 from app.logger import get_logger
 
@@ -22,6 +24,7 @@ DEFAULT_PROFILES = {
 class UserProfileManager:
     def __init__(self):
         self._profiles: Dict[str, Dict[str, Any]] = {}
+        self._lock = threading.RLock()
         self._load()
 
     def _load(self):
@@ -34,8 +37,13 @@ class UserProfileManager:
 
     def _save(self):
         try:
-            with open(PROFILES_FILE, "w") as f:
-                json.dump(self._profiles, f, indent=2)
+            directory = os.path.dirname(PROFILES_FILE) or "."
+            with tempfile.NamedTemporaryFile("w", dir=directory, delete=False, encoding="utf-8") as tmp:
+                json.dump(self._profiles, tmp, indent=2)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+                tmp_name = tmp.name
+            os.replace(tmp_name, PROFILES_FILE)
         except Exception as e:
             logger.warning("Profile save failed", error=str(e))
 

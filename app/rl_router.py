@@ -6,6 +6,7 @@ and state persistence.
 import os
 import json
 import random
+import tempfile
 from typing import Dict, Any, Optional, List
 
 from app.task_classifier import TaskClassifier
@@ -512,8 +513,13 @@ class RLRouter:
                 "task_ts_alpha": self.task_ts_alpha,
                 "task_ts_beta": self.task_ts_beta,
             }
-            with open(self.state_file, "w") as f:
-                json.dump(state, f, indent=2)
+            directory = os.path.dirname(self.state_file) or "."
+            with tempfile.NamedTemporaryFile("w", dir=directory, delete=False, encoding="utf-8") as tmp:
+                json.dump(state, tmp, indent=2)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+                tmp_name = tmp.name
+            os.replace(tmp_name, self.state_file)
         except Exception as e:
             logger.warning("Failed to save RL state", error=str(e))
 

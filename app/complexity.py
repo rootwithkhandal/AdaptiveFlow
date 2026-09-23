@@ -135,7 +135,7 @@ class PromptComplexityScorer:
         if "```" in prompt or "`" in prompt:
             depth_score += 0.35
             signals.append("code_fence")
-        if re.search(r'\{.*\}|\[.*\]', prompt, re.DOTALL) and len(prompt) > 40:
+        if ("{" in prompt and "}" in prompt or "[" in prompt and "]" in prompt) and len(prompt) > 40:
             depth_score += 0.20
             signals.append("structured_syntax")
         if any(k in prompt_lower for k in CODE_SYNTAX):

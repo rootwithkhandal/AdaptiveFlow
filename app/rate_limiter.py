@@ -196,40 +196,36 @@ class SlidingWindowRateLimiter:
                 key = f"ratelimit:{user_id}"
                 window_start = current_time - self.window_seconds
 
-                # Atomic Redis pipeline: prune old -> count active
-                pipe = redis_client.pipeline()
-                pipe.zremrangebyscore(key, 0, window_start)
-                pipe.zcard(key)
-                res = await pipe.execute()
-                current_usage = res[1]
-
-                if current_usage >= limit:
-                    # Retrieve oldest score to compute exact retry_after
-                    oldest = await redis_client.zrange(key, 0, 0, withscores=True)
-                    if oldest:
-                        oldest_ts = float(oldest[0][1])
-                        time_remaining = (oldest_ts + self.window_seconds) - current_time
-                        retry_after = max(1, math.ceil(time_remaining))
-                    else:
-                        retry_after = max(1, math.ceil(self.window_seconds))
+                # Lua keeps pruning, counting, and recording in one Redis operation.
+                member = f"{current_time}:{uuid.uuid4().hex}"
+                script = """
+                redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[1])
+                local count = redis.call('ZCARD', KEYS[1])
+                if count >= tonumber(ARGV[2]) then
+                    local oldest = redis.call('ZRANGE', KEYS[1], 0, 0, 'WITHSCORES')
+                    return {0, count, oldest[2] or 0}
+                end
+                redis.call('ZADD', KEYS[1], ARGV[3], ARGV[4])
+                redis.call('EXPIRE', KEYS[1], ARGV[5])
+                return {1, count + 1, 0}
+                """
+                allowed_flag, current_usage, oldest_ts = await redis_client.eval(
+                    script, 1, key, window_start, limit, current_time, member, int(self.window_seconds) + 10
+                )
+                if not allowed_flag:
+                    time_remaining = (float(oldest_ts) + self.window_seconds) - current_time
+                    retry_after = max(1, math.ceil(time_remaining))
                     return False, {
                         "allowed": False,
                         "tier": tier,
                         "limit": limit,
                         "remaining": 0,
                         "retry_after": retry_after,
-                        "reset_after": max(0.0, (oldest_ts + self.window_seconds) - current_time if oldest else self.window_seconds),
+                        "reset_after": max(0.0, time_remaining),
                         "current_usage": current_usage,
                     }
 
-                # Record request in ZSET with unique member
-                member = f"{current_time}:{uuid.uuid4().hex[:8]}"
-                pipe = redis_client.pipeline()
-                pipe.zadd(key, {member: current_time})
-                pipe.expire(key, int(self.window_seconds) + 10)
-                await pipe.execute()
-
-                remaining = limit - (current_usage + 1)
+                remaining = limit - current_usage
                 return True, {
                     "allowed": True,
                     "tier": tier,
@@ -237,7 +233,7 @@ class SlidingWindowRateLimiter:
                     "remaining": max(0, remaining),
                     "retry_after": 0,
                     "reset_after": self.window_seconds,
-                    "current_usage": current_usage + 1,
+                    "current_usage": current_usage,
                 }
             except Exception as e:
                 self._redis_cooldown_until = time.time() + 30.0

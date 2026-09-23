@@ -10,6 +10,8 @@ from prometheus_client import make_asgi_app
 from app.api.routes import router as api_router
 from app.api.admin import admin_router
 from app.logger import get_logger
+from app.config import settings
+from app.models.client import close_http_client
 
 logger = get_logger(__name__)
 
@@ -17,8 +19,11 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("AdaptiveFlow starting up — adapts to every prompt")
-    yield
-    logger.info("Shutting down")
+    try:
+        yield
+    finally:
+        await close_http_client()
+        logger.info("Shutting down")
 
 
 app = FastAPI(
@@ -30,9 +35,9 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.allowed_origins,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-Admin-Key", "X-User-Id"],
 )
 
 # Mount Prometheus metrics endpoint

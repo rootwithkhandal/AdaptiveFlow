@@ -8,6 +8,7 @@ Features:
 import hashlib
 import json
 import time
+import asyncio
 from typing import Optional, Dict, Any, List, Tuple
 import numpy as np
 
@@ -81,6 +82,14 @@ class RedisCache:
         raw = self._embedder.encode(text, convert_to_numpy=True).astype("float32")
         return self._normalize(raw)
 
+    def _prune_local_cache(self):
+        now = time.time()
+        self._local_exact = {key: item for key, item in self._local_exact.items() if item[1] > now}
+        overflow = len(self._local_exact) - settings.max_local_cache_entries
+        if overflow > 0:
+            for key, _ in sorted(self._local_exact.items(), key=lambda item: item[1][1])[:overflow]:
+                del self._local_exact[key]
+
     async def get_exact(self, prompt: str) -> Optional[Dict[str, Any]]:
         """Exact-match lookup via SHA256 key in Redis with in-memory fallback."""
         key = f"cache:{self._hash(prompt)}"
@@ -143,7 +152,7 @@ class RedisCache:
 
         # 2. Semantic match (vector similarity)
         if self.enable_semantic_cache:
-            semantic_hit = self.get_semantic(prompt)
+            semantic_hit = await asyncio.to_thread(self.get_semantic, prompt)
             if semantic_hit:
                 return semantic_hit
 
@@ -154,6 +163,7 @@ class RedisCache:
         key = f"cache:{self._hash(prompt)}"
         # Always store in in-memory fallback
         self._local_exact[key] = (dict(value), time.time() + self.ttl)
+        self._prune_local_cache()
 
         # 1. Store in Redis
         if self._client and time.time() >= self._redis_cooldown_until:
@@ -167,7 +177,10 @@ class RedisCache:
         # 2. Store in FAISS semantic index
         if self._faiss_index and self._embedder:
             try:
-                emb = self._embed(prompt)
+                if len(self._cached_docs) >= settings.max_local_cache_entries:
+                    logger.debug("Semantic cache is at capacity; skipping new vector", limit=settings.max_local_cache_entries)
+                    return
+                emb = await asyncio.to_thread(self._embed, prompt)
                 if emb is not None:
                     self._faiss_index.add(emb.reshape(1, -1))
                     doc_meta = {

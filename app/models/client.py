@@ -5,6 +5,7 @@ import asyncio
 import time
 import enum
 from typing import Dict, Any, Optional, Set
+import httpx
 
 from app.models.registry import MODEL_REGISTRY
 from app.config import settings
@@ -17,6 +18,22 @@ def estimate_cost(model: str, total_tokens: int) -> float:
     return (total_tokens / 1000) * cost_per_1k
 
 logger = get_logger(__name__)
+_http_client: Optional[httpx.AsyncClient] = None
+
+
+def _get_http_client() -> httpx.AsyncClient:
+    """Return the process-wide pooled HTTP client for provider calls."""
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(timeout=60.0)
+    return _http_client
+
+
+async def close_http_client():
+    global _http_client
+    if _http_client is not None:
+        await _http_client.aclose()
+        _http_client = None
 
 
 class CircuitState(str, enum.Enum):
@@ -159,15 +176,15 @@ async def _with_retry(coro_fn, *args, retries: int = 2, **kwargs):
 async def _call_litellm(model: str, prompt: str) -> Dict[str, Any]:
     """Call OpenAI / Gemini via LiteLLM."""
     import litellm
-    import os
-
-    os.environ["OPENAI_API_KEY"] = settings.openai_api_key
-    os.environ["GEMINI_API_KEY"] = settings.gemini_api_key
+    api_key = settings.gemini_api_key if "gemini" in model.lower() else settings.openai_api_key
+    if not api_key:
+        raise RuntimeError(f"API key is not configured for {model}")
 
     response = await litellm.acompletion(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=1024,
+        api_key=api_key,
     )
     text = response.choices[0].message.content
     usage = response.usage
@@ -177,8 +194,6 @@ async def _call_litellm(model: str, prompt: str) -> Dict[str, Any]:
 
 async def _call_openrouter(model: str, prompt: str) -> Dict[str, Any]:
     """Call OpenRouter via its OpenAI-compatible REST API."""
-    import httpx
-
     if not settings.openrouter_api_key:
         raise RuntimeError("OPENROUTER_API_KEY is not set")
 
@@ -199,14 +214,13 @@ async def _call_openrouter(model: str, prompt: str) -> Dict[str, Any]:
         "max_tokens": 1024,
     }
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(
+    resp = await _get_http_client().post(
             f"{settings.openrouter_base_url}/chat/completions",
             headers=headers,
             json=payload,
-        )
-        resp.raise_for_status()
-        data = resp.json()
+    )
+    resp.raise_for_status()
+    data = resp.json()
 
     text = data["choices"][0]["message"]["content"]
     usage = data.get("usage", {})
@@ -217,30 +231,25 @@ async def _call_openrouter(model: str, prompt: str) -> Dict[str, Any]:
 
 async def _call_ollama(model: str, prompt: str) -> Dict[str, Any]:
     """Call local Ollama model via HTTP."""
-    import httpx
-
     model_name = model.replace("ollama/", "")
     url = f"{settings.ollama_base_url}/api/generate"
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(url, json={
+    resp = await _get_http_client().post(url, json={
             "model": model_name,
             "prompt": prompt,
             "stream": False,
-        })
-        resp.raise_for_status()
-        data = resp.json()
-        return {
-            "response": data.get("response", ""),
-            "cost": 0.0,
-            "tokens": data.get("eval_count", 0),
-        }
+    })
+    resp.raise_for_status()
+    data = resp.json()
+    return {
+        "response": data.get("response", ""),
+        "cost": 0.0,
+        "tokens": data.get("eval_count", 0),
+    }
 
 
 async def _call_nvidia(model: str, prompt: str) -> Dict[str, Any]:
     """Call NVIDIA NIM API via OpenAI-compatible endpoint."""
-    import httpx
-
     if not settings.nvidia_api_key:
         raise RuntimeError("NVIDIA_API_KEY is not set")
 
@@ -258,14 +267,13 @@ async def _call_nvidia(model: str, prompt: str) -> Dict[str, Any]:
         "temperature": 0.5,
     }
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(
+    resp = await _get_http_client().post(
             f"{settings.nvidia_base_url}/chat/completions",
             headers=headers,
             json=payload,
-        )
-        resp.raise_for_status()
-        data = resp.json()
+    )
+    resp.raise_for_status()
+    data = resp.json()
 
     text = data["choices"][0]["message"]["content"]
     usage = data.get("usage", {})
@@ -329,4 +337,3 @@ async def call_model(model: str, prompt: str, visited: Optional[Set[str]] = None
         if fallback and fallback not in visited:
             return await call_model(fallback, prompt, visited)
         raise RuntimeError(f"All models failed for {model}: {e}") from e
-

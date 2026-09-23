@@ -5,6 +5,7 @@
 const API = '';
 let lastPrompt = '';
 let lastModelUsed = '';
+let lastFeedbackToken = '';
 
 function formatModel(name) {
   return (name || '').replace('openrouter/', '').replace('ollama/', 'local/');
@@ -59,7 +60,7 @@ setInterval(checkHealth, 15000);
 /* ── Rate Limit Indicator ── */
 async function refreshRateLimit(userId) {
   try {
-    const res = await fetch(`${API}/ratelimit/${encodeURIComponent(userId)}`);
+    const res = await fetch(`${API}/ratelimit/${encodeURIComponent(userId)}`, { headers: { 'X-Admin-Key': getAdminKey() } });
     if (!res.ok) return;
     const data = await res.json();
 
@@ -133,6 +134,7 @@ async function sendPrompt() {
       updateTurnTelemetry(data);
       lastPrompt = prompt;
       lastModelUsed = data.model_used;
+      lastFeedbackToken = data.feedback_token || '';
       document.getElementById('feedbackSection').style.display = 'block';
     }
   } catch (e) {
@@ -226,7 +228,7 @@ function useSamplePrompt(text) {
 
 /* ── Feedback ── */
 async function submitFeedback(rating) {
-  if (!lastPrompt || !lastModelUsed) return;
+  if (!lastPrompt || !lastModelUsed || !lastFeedbackToken) return;
   const userId = document.getElementById('userId').value.trim() || 'user_001';
   try {
     await fetch(`${API}/feedback`, {
@@ -237,9 +239,11 @@ async function submitFeedback(rating) {
         prompt: lastPrompt,
         model_used: lastModelUsed,
         rating: rating,
+        feedback_token: lastFeedbackToken,
       }),
     });
     showToast(rating === 1 ? '👍 Positive feedback recorded' : '👎 Negative penalty recorded');
+    lastFeedbackToken = '';
     document.getElementById('feedbackSection').style.display = 'none';
   } catch (e) {
     showToast('Failed to record feedback');
@@ -423,7 +427,7 @@ async function loadProfile() {
   if (!userId) return;
 
   try {
-    const res = await fetch(`${API}/profile/${encodeURIComponent(userId)}`);
+    const res = await fetch(`${API}/profile/${encodeURIComponent(userId)}`, { headers: { 'X-Admin-Key': getAdminKey() } });
     if (!res.ok) throw new Error('User not found');
     const data = await res.json();
 
@@ -457,7 +461,7 @@ async function savePreferences() {
   try {
     const res = await fetch(`${API}/profile/${encodeURIComponent(userId)}/preferences`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': getAdminKey() },
       body: JSON.stringify({ prefer: prefer || null, avoid }),
     });
     if (!res.ok) throw new Error('Failed to save preferences');
@@ -489,15 +493,23 @@ async function loadSecurityAuditLogs() {
       return;
     }
 
-    tbody.innerHTML = logs.map(row => `
-      <tr>
-        <td style="font-family:var(--font-mono); font-size:11px;">${row.timestamp}</td>
-        <td style="font-weight:500;">${row.user_id}</td>
-        <td><span class="badge" style="color:var(--colors-error); background:#fff0f0; border-color:#fecaca;">${row.threat_type}</span></td>
-        <td style="font-family:var(--font-mono); font-size:11px;">${row.matched_pattern}</td>
-        <td style="font-size:12px; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${row.prompt_snippet}">${row.prompt_snippet}</td>
-      </tr>
-    `).join('');
+    tbody.replaceChildren(...logs.map(row => {
+      const tr = document.createElement('tr');
+      [row.timestamp, row.user_id, row.threat_type, row.matched_pattern, row.prompt_snippet].forEach((value, index) => {
+        const td = document.createElement('td');
+        td.textContent = String(value ?? '');
+        if (index === 2) {
+          const badge = document.createElement('span');
+          badge.className = 'badge';
+          badge.style.cssText = 'color:var(--colors-error); background:#fff0f0; border-color:#fecaca;';
+          badge.textContent = td.textContent;
+          td.replaceChildren(badge);
+        }
+        if (index === 4) { td.style.cssText = 'font-size:12px; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'; td.title = td.textContent; }
+        tr.appendChild(td);
+      });
+      return tr;
+    }));
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="5" style="color:var(--colors-error);">${e.message}</td></tr>`;
   }
