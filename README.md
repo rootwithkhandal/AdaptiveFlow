@@ -193,24 +193,6 @@ uv run pytest -v
 uv run pytest tests/test_complexity.py -v
 ```
 
-### Verified Test Suites (105/105 Passing)
-
-- `tests/test_complexity.py`: Token count, Shannon entropy, question depth scoring, and cheapest capable model bypass.
-- `tests/test_persona_preferences.py`: User and admin routing hints (`prefer`, `avoid`) acting as Bayesian priors.
-- `tests/test_explain.py`: Algorithmic transparency in `GET /route/explain`.
-- `tests/test_security.py`: Guardrail regex blocking, SQLite & JSONL audit logs, and compliance APIs.
-- `tests/test_rate_limiter.py`: Sliding window quotas per tier, Redis/FAISS protection, and HTTP 429 retries.
-- `tests/test_circuit_breaker.py`: Per-model failure thresholding, 30s recovery canary probes, and fallback cascades.
-- `tests/test_benchmarks.py`: 48-prompt synthetic benchmark cold-start warm-up and Q-table seeding.
-- `tests/test_rl_router.py`: Independent per-task RL arms, isolated epsilon decay, and Q-table persistence.
-- `tests/test_implicit_feedback.py`: Rephrase penalty, dwell engagement, and session abandonment signals.
-- `tests/test_nvidia_models.py`: NVIDIA NIM and Nemotron model integrations.
-- `tests/test_parallel_executor.py`: Concurrent multi-model execution (`fastest`, `highest_q`, `all`).
-- `tests/test_synthesis.py`: Fugu-Ultra multi-model synthesis and LLM judge scoring.
-- `tests/test_semantic_cache.py`: Dual SHA256 and FAISS cosine similarity semantic caching.
-- `tests/test_router.py`: End-to-end API integration tests.
-
----
 
 ## License
 
